@@ -13,6 +13,36 @@ const API_KEYS = {
 };
 
 // ---------------------------
+// Types
+// ---------------------------
+export type Message = {
+  id: string;
+  role: "user" | "bot";
+  content: string;
+  timestamp: Date;
+};
+
+// ---------------------------
+// Company to Ticker mapping for common companies
+// ---------------------------
+const COMPANY_TO_TICKER: Record<string, string> = {
+  "apple": "AAPL",
+  "google": "GOOGL",
+  "microsoft": "MSFT",
+  "amazon": "AMZN",
+  "tesla": "TSLA",
+  "facebook": "META",
+  "meta": "META",
+  "netflix": "NFLX",
+  "uber": "UBER",
+  "airbnb": "ABNB",
+  "nvidia": "NVDA",
+  "amd": "AMD",
+  "intel": "INTC",
+  "ibm": "IBM"
+};
+
+// ---------------------------
 // Initialize Gemini API
 // ---------------------------
 const genAI = new GoogleGenerativeAI(API_KEYS.gemini);
@@ -20,9 +50,7 @@ const genAI = new GoogleGenerativeAI(API_KEYS.gemini);
 // ---------------------------
 // Financial context documents (vector database simulation)
 // ---------------------------
- ---------------------------
 const documents = [
-    # Existing entries
     {
         "text": "Tesla (TSLA) saw a 12% increase in Q1 2025 after beating revenue expectations. Investor optimism has grown with rising production numbers.",
         "metadata": {"company": "Tesla", "metric": "stock price", "sentiment": "positive", "date": "2025-04-15"}
@@ -64,7 +92,6 @@ const documents = [
         "metadata": {"region": "Europe", "regulator": "European Commission", "sentiment": "positive", "date": "2025-04-07"}
     },
     
-    # New entries
     {
         "text": "Tesla (TSLA) stock has faced significant challenges in Q1 2025, with deliveries tracking approximately 31,000 units lower than Q1 2024. Wall Street analysts have revised delivery estimates downward to around 356,000 vehicles.",
         "metadata": {"company": "Tesla", "metric": "deliveries", "sentiment": "negative", "date": "2025-03-14"}
@@ -220,25 +247,47 @@ const callGeminiLLM = async (prompt: string, model: string = "gemini-2.0-flash")
 };
 
 // ---------------------------
-// Convert company name to ticker using Gemini LLM
+// Extract stock symbol from query - FIXED FUNCTION
 // ---------------------------
-const convertCompanyToTicker = async (companyName: string): Promise<string> => {
-  const prompt = `Convert the following company name into its stock ticker symbol. Only output the ticker symbol without any additional text.\n\nCompany Name: ${companyName}`;
-  const ticker = await callGeminiLLM(prompt, "gemini-2.0-flash");
-  return ticker.trim().toUpperCase();
-};
-
-// ---------------------------
-// Extract stock symbol from query using regex
-// ---------------------------
-const extractStockSymbol = async (query: string): Promise<string | null> => {
-  const pattern = /(?:price of|stock price for|quote for)\s+([A-Za-z]+)/i;
-  const match = query.match(pattern);
-  if (match && match[1]) {
-    const candidate = match[1].trim();
-    const ticker = await convertCompanyToTicker(candidate);
-    return ticker;
+const extractStockSymbol = (query: string): string | null => {
+  // Try to extract using known patterns
+  const patterns = [
+    /(?:price of|stock price for|quote for|get stock price of)\s+([A-Za-z\s]+)/i,
+    /([A-Za-z\s]+)\s+stock price/i,
+    /([A-Za-z\s]+)\s+share price/i,
+    /([A-Za-z\s]+)\s+stock/i,
+  ];
+  
+  for (const pattern of patterns) {
+    const match = query.match(pattern);
+    if (match && match[1]) {
+      const companyName = match[1].trim().toLowerCase();
+      
+      // Direct lookup in our mapping dictionary
+      if (COMPANY_TO_TICKER[companyName]) {
+        return COMPANY_TO_TICKER[companyName];
+      }
+      
+      // Handle partial matches
+      for (const [company, ticker] of Object.entries(COMPANY_TO_TICKER)) {
+        if (companyName.includes(company) || company.includes(companyName)) {
+          return ticker;
+        }
+      }
+      
+      // Try to infer ticker from company name if not found
+      if (companyName.length >= 2) {
+        return companyName.substring(0, Math.min(4, companyName.length)).toUpperCase();
+      }
+    }
   }
+  
+  // If no extraction patterns worked, check if the query itself is a ticker
+  const potentialTicker = query.trim().toUpperCase();
+  if (/^[A-Z]{1,5}$/.test(potentialTicker)) {
+    return potentialTicker;
+  }
+  
   return null;
 };
 
@@ -247,6 +296,7 @@ const extractStockSymbol = async (query: string): Promise<string | null> => {
 // ---------------------------
 const getStockQuote = async (symbol: string): Promise<string> => {
   try {
+    console.log(`Fetching stock quote for: ${symbol}`);
     const response = await axios.get("https://www.alphavantage.co/query", {
       params: {
         function: "GLOBAL_QUOTE",
@@ -262,11 +312,41 @@ const getStockQuote = async (symbol: string): Promise<string> => {
       const change = quote["09. change"] || "N/A";
       const changePercent = quote["10. change percent"] || "N/A";
       return `Alpha Vantage: The latest quote for ${symbol} is $${price}, change: ${change} (${changePercent}).`;
+    } else if (data["Information"]) {
+      console.error("Alpha Vantage API limit reached:", data["Information"]);
+      // Provide simulated fallback data for common stocks during API limits
+      if (symbol === "AAPL") {
+        return `Simulated data (API limit reached): The latest quote for AAPL is $180.75, change: +1.25 (+0.70%).`;
+      } else if (symbol === "MSFT") {
+        return `Simulated data (API limit reached): The latest quote for MSFT is $402.35, change: -0.45 (-0.11%).`;
+      } else if (symbol === "GOOGL") {
+        return `Simulated data (API limit reached): The latest quote for GOOGL is $165.20, change: +2.35 (+1.44%).`;
+      } else if (symbol === "AMZN") {
+        return `Simulated data (API limit reached): The latest quote for AMZN is $178.25, change: +0.85 (+0.48%).`;
+      } else if (symbol === "TSLA") {
+        return `Simulated data (API limit reached): The latest quote for TSLA is $250.50, change: -3.25 (-1.28%).`;
+      } else {
+        return `Unable to retrieve stock data for ${symbol} - API limit reached. Please try again later.`;
+      }
     } else {
-      return `Alpha Vantage: Unable to retrieve stock data for ${symbol}.`;
+      return `Unable to retrieve stock data for ${symbol}.`;
     }
   } catch (error) {
     console.error("Error fetching stock quote:", error);
+    
+    // Fallback for common stocks in case of error
+    if (symbol === "AAPL") {
+      return `Simulated data (API error): The latest quote for AAPL is $180.75, change: +1.25 (+0.70%).`;
+    } else if (symbol === "MSFT") {
+      return `Simulated data (API error): The latest quote for MSFT is $402.35, change: -0.45 (-0.11%).`;
+    } else if (symbol === "GOOGL") {
+      return `Simulated data (API error): The latest quote for GOOGL is $165.20, change: +2.35 (+1.44%).`;
+    } else if (symbol === "AMZN") {
+      return `Simulated data (API error): The latest quote for AMZN is $178.25, change: +0.85 (+0.48%).`;
+    } else if (symbol === "TSLA") {
+      return `Simulated data (API error): The latest quote for TSLA is $250.50, change: -3.25 (-1.28%).`;
+    }
+    
     return `Error retrieving stock data for ${symbol}.`;
   }
 };
@@ -302,17 +382,68 @@ const fetchCompanyNews = async (company: string, count: number = 5): Promise<str
 // Perform sentiment analysis using news headlines and Gemini LLM
 // ---------------------------
 const performSentimentAnalysis = async (company: string): Promise<string> => {
-  const headlines = await fetchCompanyNews(company, 5);
-  if (headlines.length === 0) {
-    return `No news headlines found for ${company} for sentiment analysis.`;
+  try {
+    const headlines = await fetchCompanyNews(company, 5);
+    
+    if (headlines.length === 0) {
+      // Fallback simulated sentiment for common companies
+      if (company.toLowerCase() === "apple" || company.toLowerCase() === "aapl") {
+        return `Simulated sentiment analysis for Apple (due to NewsAPI limits):
+        
+Overall sentiment: Positive
+        
+Recent headlines indicate positive market sentiment toward Apple, driven by strong iPhone 15 sales and anticipation of new AI features in iOS 18. Analysts remain bullish on the company's hardware ecosystem and services growth, though there are some concerns about competition in China.`;
+      } else if (company.toLowerCase() === "tesla" || company.toLowerCase() === "tsla") {
+        return `Simulated sentiment analysis for Tesla (due to NewsAPI limits):
+        
+Overall sentiment: Mixed to Negative
+        
+Recent headlines show mixed sentiment toward Tesla, with concerns about declining delivery numbers and increasing competition in the EV market. However, some positive sentiment exists around the company's energy business and upcoming product announcements.`;
+      } else if (company.toLowerCase() === "amazon" || company.toLowerCase() === "amzn") {
+        return `Simulated sentiment analysis for Amazon (due to NewsAPI limits):
+        
+Overall sentiment: Positive
+        
+Recent headlines suggest positive sentiment toward Amazon, highlighting strong AWS growth and expanded retail market share. Analysts praise the company's cost-cutting measures and strategic investments in AI, though there are some regulatory concerns in European markets.`;
+      }
+      
+      return `No news headlines found for ${company} for sentiment analysis.`;
+    }
+    
+    let prompt = `Analyze the sentiment of the following news headlines about ${company}:\n`;
+    headlines.forEach((headline) => {
+      prompt += `- ${headline}\n`;
+    });
+    prompt += `\nProvide a summary sentiment analysis (positive, negative, or neutral) along with reasons.`;
+    
+    const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
+    return analysis;
+  } catch (error) {
+    console.error("Error performing sentiment analysis:", error);
+    
+    // Fallback for common companies
+    if (company.toLowerCase() === "apple" || company.toLowerCase() === "aapl") {
+      return `Simulated sentiment analysis for Apple (due to error):
+      
+Overall sentiment: Positive
+      
+Recent headlines indicate positive market sentiment toward Apple, driven by strong iPhone 15 sales and anticipation of new AI features in iOS 18. Analysts remain bullish on the company's hardware ecosystem and services growth, though there are some concerns about competition in China.`;
+    } else if (company.toLowerCase() === "tesla" || company.toLowerCase() === "tsla") {
+      return `Simulated sentiment analysis for Tesla (due to error):
+      
+Overall sentiment: Mixed to Negative
+      
+Recent headlines show mixed sentiment toward Tesla, with concerns about declining delivery numbers and increasing competition in the EV market. However, some positive sentiment exists around the company's energy business and upcoming product announcements.`;
+    } else if (company.toLowerCase() === "amazon" || company.toLowerCase() === "amzn") {
+      return `Simulated sentiment analysis for Amazon (due to error):
+      
+Overall sentiment: Positive
+      
+Recent headlines suggest positive sentiment toward Amazon, highlighting strong AWS growth and expanded retail market share. Analysts praise the company's cost-cutting measures and strategic investments in AI, though there are some regulatory concerns in European markets.`;
+    }
+    
+    return `Error performing sentiment analysis. Please try again later.`;
   }
-  let prompt = `Analyze the sentiment of the following news headlines about ${company}:\n`;
-  headlines.forEach((headline) => {
-    prompt += `- ${headline}\n`;
-  });
-  prompt += `\nProvide a summary sentiment analysis (positive, negative, or neutral) along with reasons.`;
-  const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
-  return analysis;
 };
 
 // ---------------------------
@@ -341,15 +472,77 @@ const extractCompanyName = (query: string): string | null => {
 // Get stock news headlines for a company
 // ---------------------------
 const getStockNews = async (company: string): Promise<string> => {
-  const headlines = await fetchCompanyNews(company, 5);
-  if (headlines.length === 0) {
-    return `No news headlines found for ${company}.`;
+  try {
+    const headlines = await fetchCompanyNews(company, 5);
+    
+    if (headlines.length === 0) {
+      // Fallback simulated news for common companies
+      if (company.toLowerCase() === "apple" || company.toLowerCase() === "aapl") {
+        return `Simulated news headlines for Apple (due to NewsAPI limits):
+        
+- Apple Unveils New MacBook Pro with M3 Pro and M3 Max Chips
+- iOS 18 to Feature Major AI Upgrades, Sources Say
+- Apple Services Revenue Hits All-Time High in Q1 2025
+- Apple Expands Manufacturing in India Amid China Diversification
+- Analysts Bullish on Apple Stock Ahead of WWDC 2025 Announcements`;
+      } else if (company.toLowerCase() === "tesla" || company.toLowerCase() === "tsla") {
+        return `Simulated news headlines for Tesla (due to NewsAPI limits):
+        
+- Tesla Q1 2025 Deliveries Miss Analyst Expectations
+- Cybertruck Production Ramps Up as Tesla Addresses Early Issues
+- Tesla Energy Division Shows Strong Growth with Powerwall Installations
+- Musk Hints at New Tesla Roadster Release Date at Shareholder Meeting
+- Competition Intensifies as Legacy Automakers Release New EVs`;
+      } else if (company.toLowerCase() === "amazon" || company.toLowerCase() === "amzn") {
+        return `Simulated news headlines for Amazon (due to NewsAPI limits):
+        
+- Amazon AWS Revenue Grows 35% Year-Over-Year in Latest Quarter
+- Amazon's AI Shopping Assistant Launches to Prime Members
+- Amazon Expands Healthcare Initiatives with New Pharmacy Features
+- EU Regulators Scrutinize Amazon's Data Practices in New Investigation
+- Amazon Announces Plans for 25 New Fulfillment Centers Worldwide`;
+      }
+      
+      return `No news headlines found for ${company}.`;
+    }
+    
+    let result = `News headlines for ${company}:\n`;
+    headlines.forEach((headline) => {
+      result += `- ${headline}\n`;
+    });
+    return result;
+  } catch (error) {
+    console.error("Error fetching news:", error);
+    
+    // Fallback for common companies
+    if (company.toLowerCase() === "apple" || company.toLowerCase() === "aapl") {
+      return `Simulated news headlines for Apple (due to error):
+      
+- Apple Unveils New MacBook Pro with M3 Pro and M3 Max Chips
+- iOS 18 to Feature Major AI Upgrades, Sources Say
+- Apple Services Revenue Hits All-Time High in Q1 2025
+- Apple Expands Manufacturing in India Amid China Diversification
+- Analysts Bullish on Apple Stock Ahead of WWDC 2025 Announcements`;
+    } else if (company.toLowerCase() === "tesla" || company.toLowerCase() === "tsla") {
+      return `Simulated news headlines for Tesla (due to error):
+      
+- Tesla Q1 2025 Deliveries Miss Analyst Expectations
+- Cybertruck Production Ramps Up as Tesla Addresses Early Issues
+- Tesla Energy Division Shows Strong Growth with Powerwall Installations
+- Musk Hints at New Tesla Roadster Release Date at Shareholder Meeting
+- Competition Intensifies as Legacy Automakers Release New EVs`;
+    } else if (company.toLowerCase() === "amazon" || company.toLowerCase() === "amzn") {
+      return `Simulated news headlines for Amazon (due to error):
+      
+- Amazon AWS Revenue Grows 35% Year-Over-Year in Latest Quarter
+- Amazon's AI Shopping Assistant Launches to Prime Members
+- Amazon Expands Healthcare Initiatives with New Pharmacy Features
+- EU Regulators Scrutinize Amazon's Data Practices in New Investigation
+- Amazon Announces Plans for 25 New Fulfillment Centers Worldwide`;
+    }
+    
+    return `Error fetching news for ${company}. Please try again later.`;
   }
-  let result = `News headlines for ${company}:\n`;
-  headlines.forEach((headline) => {
-    result += `- ${headline}\n`;
-  });
-  return result;
 };
 
 // ---------------------------
@@ -409,38 +602,14 @@ export const sendChatMessage = async (message: string): Promise<string> => {
 
     // Branch: Stock Price / Quote
     if (lowerMessage.includes("price") || lowerMessage.includes("stock") || lowerMessage.includes("quote")) {
-      const ticker = await extractStockSymbol(message);
+      console.log("Detected stock price request");
+      const ticker = extractStockSymbol(message);
+      console.log("Extracted ticker:", ticker);
+      
       if (ticker) {
         const stockInfo = await getStockQuote(ticker);
         // Retrieve additional context using simulated vector search
         const context = retrieveContext(message, 2);
         return `${context}\n${stockInfo}`;
-      }
-    }
-
-    // Default: Retrieval Augmented Generation (RAG)
-    const context = retrieveContext(message, 2);
-    const combinedPrompt = `Context:\n${context}\n\nUser Query: ${message}\n\nAnswer:`;
-    return await callGeminiLLM(combinedPrompt, "gemini-2.0-flash");
-  } catch (error) {
-    console.error("Error in chatbot:", error);
-    toast.error("Failed to get a response. Please try again.");
-    return "I'm having trouble processing your request right now. Please try again later.";
-  }
-};
-
-// ---------------------------
-// Function to handle file uploads for image analysis in a browser environment
-// ---------------------------
-export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
-  try {
-    const buffer = await file.arrayBuffer();
-    const base64Image = Buffer.from(buffer).toString("base64");
-    const prompt = `You are a financial analyst with expertise in stock market trends and financial charts. The following image (provided as a base64-encoded string) represents a financial graph—such as an S&P 500 growth chart. Please analyze the chart and provide detailed insights on trends, key performance metrics, and any notable fluctuations related to the market.\nImage (base64): ${base64Image}`;
-    return await callGeminiLLM(prompt, "gemini-2.0-flash");
-  } catch (error) {
-    console.error("Error analyzing image:", error);
-    toast.error("Failed to analyze the image. Please try again.");
-    return "I'm having trouble analyzing this image right now. Please try again later.";
-  }
-};
+      } else {
+        return "I couldn't determine which company's stock price you're looking for
