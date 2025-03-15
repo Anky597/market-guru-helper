@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -410,8 +411,12 @@ const getStockNews = async (company: string): Promise<string> => {
 // ---------------------------
 // Analyze Uploaded Image/Graph Functionality
 // ---------------------------
-const analyzeImage = async (base64Image: string): Promise<string> => {
+// Update to accept File object instead of string
+const analyzeImage = async (file: File): Promise<string> => {
     try {
+        // Convert File to base64
+        const base64Image = await fileToBase64(file);
+        
         const prompt = `You are a financial analyst with expertise in stock market trends and financial charts. The following image (provided as a base64-encoded string) represents a financial graph—such as an S&P 500 growth chart. Please analyze the chart and provide detailed insights on trends, key performance metrics, and any notable fluctuations related to the market.\nImage (base64): ${base64Image}`;
         const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
         return analysis;
@@ -419,6 +424,24 @@ const analyzeImage = async (base64Image: string): Promise<string> => {
         console.error("Error processing image:", error);
         return `Error processing image: ${error.message}`;
     }
+};
+
+// Helper function to convert File to base64
+const fileToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            } else {
+                reject(new Error('Failed to convert file to base64'));
+            }
+        };
+        reader.onerror = (error) => reject(error);
+    });
 };
 
 // ---------------------------
@@ -462,9 +485,10 @@ export const sendChatMessage = async (query: string): Promise<string> => {
     }
 };
 
-export const uploadAndAnalyzeImage = async (imageBase64: string): Promise<string> => {
+// Update to accept File object
+export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
     try {
-        return await analyzeImage(imageBase64);
+        return await analyzeImage(file);
     } catch (error: any) {
         console.error("Error analyzing image:", error);
         return `Error analyzing image: ${error.message}`;

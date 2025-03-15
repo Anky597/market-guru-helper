@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,7 @@ import { ChatMessage } from "@/components/ChatMessage";
 import { Message, sendChatMessage, uploadAndAnalyzeImage } from "@/utils/chatbotService";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Send, Image, Paperclip, Bot, RefreshCw } from "lucide-react";
+import { Send, Image, Bot, RefreshCw } from "lucide-react";
 
 export function ChatInterface() {
   const [messages, setMessages] = useState<Message[]>([
@@ -117,6 +116,17 @@ export function ChatInterface() {
     }
   };
 
+  const handleReset = () => {
+    setMessages([
+      {
+        id: "welcome",
+        role: "bot",
+        content: "Welcome to the Financial Assistant! I can help you with stock quotes, financial news, sentiment analysis, and chart interpretation. How can I assist you today?",
+        timestamp: new Date(),
+      },
+    ]);
+  };
+
   return (
     <Card className="w-full max-w-3xl mx-auto overflow-hidden rounded-xl shadow-lg border-0 glass-panel">
       <CardContent className="p-0 flex flex-col h-full">
@@ -131,7 +141,7 @@ export function ChatInterface() {
               <p className="text-xs text-muted-foreground">Powered by RAG + LLM</p>
             </div>
           </div>
-          <Button variant="outline" size="sm" className="glass-button">
+          <Button variant="outline" size="sm" className="glass-button" onClick={handleReset}>
             <RefreshCw className="w-4 h-4 mr-1" /> Reset
           </Button>
         </div>
