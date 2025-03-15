@@ -612,4 +612,64 @@ export const sendChatMessage = async (message: string): Promise<string> => {
         const context = retrieveContext(message, 2);
         return `${context}\n${stockInfo}`;
       } else {
-        return "I couldn't determine which company's stock price you're looking for
+        return "I couldn't determine which company's stock price you're looking for. Please specify a company name.";
+      }
+    }
+
+    // Default: General query using context-enhanced LLM call
+    const context = retrieveContext(message, 3);
+    const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.
+    
+Context: ${context}
+
+User query: ${message}`;
+    
+    return await callGeminiLLM(prompt);
+  } catch (error) {
+    console.error("Error in chatbot:", error);
+    return "Sorry, I encountered an error processing your request. Please try again.";
+  }
+};
+
+// ---------------------------
+// Image analysis functionality (export for use in components)
+// ---------------------------
+export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
+  try {
+    const reader = new FileReader();
+    
+    return new Promise((resolve, reject) => {
+      reader.onload = async (event) => {
+        try {
+          if (!event.target || !event.target.result) {
+            throw new Error("Failed to read file");
+          }
+          
+          const base64Image = (event.target.result as string).split(',')[1];
+          
+          // Call the Gemini Vision model
+          const genAI = new GoogleGenerativeAI(API_KEYS.gemini);
+          const model = genAI.getGenerativeModel({ model: "gemini-2.0-pro-vision" });
+          
+          const prompt = "Analyze this financial chart or graph. Describe the trends, key data points, and what insights we can gather from this visualization. If it's a stock chart, identify the pattern and potential future movement.";
+          
+          const result = await model.generateContent([prompt, { inlineData: { data: base64Image, mimeType: "image/jpeg" } }]);
+          const response = await result.response;
+          return resolve(response.text());
+        } catch (error) {
+          console.error("Error analyzing image:", error);
+          reject(new Error(`Error analyzing image: ${error}`));
+        }
+      };
+      
+      reader.onerror = () => {
+        reject(new Error("Error reading file"));
+      };
+      
+      reader.readAsDataURL(file);
+    });
+  } catch (error) {
+    console.error("Error processing image:", error);
+    return `Error processing image: ${error}`;
+  }
+};
