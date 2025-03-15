@@ -1,18 +1,14 @@
-
 import { toast } from "sonner";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import fs from "fs/promises";
-import formidable from 'formidable';
-import path from 'path';
 
 // ---------------------------
 // API keys – in production these should be stored securely as environment variables
 // ---------------------------
 const API_KEYS = {
-    gemini: process.env.GEMINI_API_KEY || "AIzaSyB_u-Y8O422aIKG5ga_Ae7bN8q-6YKnx8E", // Replace with your actual key in environment variables
-  alphaVantage: process.env.ALPHA_VANTAGE_API_KEY || "4MK98IQRF8RTSYQ3", // Replace with your actual key
-  newsApi: process.env.NEWS_API_KEY || "1a0c8951c92b4906b50f9dc0b1186174", // Replace with your actual key
+    gemini: import.meta.env.VITE_GEMINI_API_KEY || "AIzaSyB_u-Y8O422aIKG5ga_Ae7bN8q-6YKnx8E", // Replace with your actual key in environment variables
+    alphaVantage: import.meta.env.VITE_ALPHA_VANTAGE_API_KEY || "4MK98IQRF8RTSYQ3", // Replace with your actual key
+    newsApi: import.meta.env.VITE_NEWS_API_KEY || "1a0c8951c92b4906b50f9dc0b1186174", // Replace with your actual key
 };
 
 // Ensure API keys are set
@@ -40,144 +36,184 @@ const genAI = new GoogleGenerativeAI(API_KEYS.gemini);
 // ---------------------------
 const documents = [
     {
-        "text": "Tesla (TSLA) saw a 12% increase in Q1 2025 after beating revenue expectations. Investor optimism has grown with rising production numbers.",
-        "metadata": {"company": "Tesla", "metric": "stock price", "sentiment": "positive", "date": "2025-04-15"}
+        id: "doc1",
+        text: "The S&P 500 is a stock market index tracking the stock performance of 500 large companies listed on stock exchanges in the United States. It is one of the most commonly followed equity indices, and many consider it to be one of the best representations of the U.S. stock market.",
+        metadata: {
+            category: "market_indices",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Apple (AAPL) reported a slight dip in its share price following mixed quarterly results, sparking a cautious outlook among analysts.",
-        "metadata": {"company": "Apple", "metric": "stock price", "sentiment": "negative", "date": "2025-03-30"}
+        id: "doc2",
+        text: "A bull market is a financial market of a group of securities in which prices are rising or are expected to rise. The term 'bull market' is most often used to refer to the stock market but can be applied to anything that is traded, such as bonds, real estate, currencies, and commodities.",
+        metadata: {
+            category: "market_terminology",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "The NASDAQ Composite hit a milestone, reaching 15000 points driven by strong performances in the technology sector.",
-        "metadata": {"index": "NASDAQ Composite", "metric": "index value", "sentiment": "positive", "date": "2025-04-10"}
+        id: "doc3",
+        text: "A bear market is a general decline in the stock market over a period of time. It includes a transition from high investor optimism to widespread investor fear and pessimism. One commonly accepted definition of a bear market is a situation in which stock prices fall 20% or more from recent highs.",
+        metadata: {
+            category: "market_terminology",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Inflation concerns continue as consumer prices rose by 3.2% in March 2025, leading to uncertainty in the bond markets.",
-        "metadata": {"metric": "inflation rate", "sentiment": "negative", "date": "2025-03-31"}
+        id: "doc4",
+        text: "Market capitalization, commonly called market cap, is the market value of a publicly traded company's outstanding shares. Market capitalization is equal to the share price multiplied by the number of shares outstanding.",
+        metadata: {
+            category: "fundamental_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "Gold has maintained its status as a safe-haven asset, with prices stabilizing amidst ongoing global economic uncertainties.",
-        "metadata": {"asset": "Gold", "metric": "price", "sentiment": "neutral", "date": "2025-04-05"}
+        id: "doc5",
+        text: "The price-to-earnings ratio (P/E ratio) is the ratio for valuing a company that measures its current share price relative to its per-share earnings. The price-to-earnings ratio is also sometimes known as the price multiple or the earnings multiple.",
+        metadata: {
+            category: "fundamental_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "Amazon (AMZN) has seen its stock surge by 8% following the announcement of new innovations in its cloud computing services.",
-        "metadata": {"company": "Amazon", "metric": "stock price", "sentiment": "positive", "date": "2025-04-12"}
+        id: "doc6",
+        text: "Dividend yield is a financial ratio that shows how much a company pays out in dividends each year relative to its stock price. Dividend yield is represented as a percentage and can be calculated by dividing the dollar value of dividends paid in a given year per share of stock by the dollar value of one share of stock.",
+        metadata: {
+            category: "fundamental_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "Market analysts remain divided over the outlook for the S&P 500, citing concerns about potential market corrections amid high valuations.",
-        "metadata": {"index": "S&P 500", "metric": "index value", "sentiment": "neutral", "date": "2025-04-08"}
+        id: "doc7",
+        text: "Technical analysis is a trading discipline employed to evaluate investments and identify trading opportunities by analyzing statistical trends gathered from trading activity, such as price movement and volume.",
+        metadata: {
+            category: "technical_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "Emerging market currencies have experienced volatility, with significant fluctuations observed due to political unrest in several regions.",
-        "metadata": {"asset": "emerging market currencies", "risk": "political instability", "sentiment": "negative", "date": "2025-04-09"}
+        id: "doc8",
+        text: "The Relative Strength Index (RSI) is a momentum indicator that measures the magnitude of recent price changes to evaluate overbought or oversold conditions in the price of a stock or other asset. The RSI is displayed as an oscillator (a line graph that moves between two extremes) and can have a reading from 0 to 100.",
+        metadata: {
+            category: "technical_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "Compound interest remains a fundamental concept in finance, underscoring the benefits of early and consistent investments for long-term wealth accumulation.",
-        "metadata": {"concept": "compound interest", "sentiment": "positive"}
+        id: "doc9",
+        text: "Moving averages are a simple technical analysis tool that smooth out price data by creating a constantly updated average price. The average is taken over a specific period of time, like 10 days, 20 minutes, 30 weeks, or any time period the trader chooses.",
+        metadata: {
+            category: "technical_analysis",
+            source: "financial_encyclopedia",
+            relevance: "medium"
+        }
     },
     {
-        "text": "New regulations in the European financial sector are expected to reshape market dynamics, with a focus on enhancing transparency and investor protection.",
-        "metadata": {"region": "Europe", "regulator": "European Commission", "sentiment": "positive", "date": "2025-04-07"}
+        id: "doc10",
+        text: "Diversification is a risk management strategy that mixes a wide variety of investments within a portfolio. The rationale behind this technique is that a portfolio constructed of different kinds of assets will, on average, yield higher long-term returns and lower the risk of any individual holding or security.",
+        metadata: {
+            category: "investment_strategy",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Tesla (TSLA) stock has faced significant challenges in Q1 2025, with deliveries tracking approximately 31,000 units lower than Q1 2024. Wall Street analysts have revised delivery estimates downward to around 356,000 vehicles.",
-        "metadata": {"company": "Tesla", "metric": "deliveries", "sentiment": "negative", "date": "2025-03-14"}
+        id: "doc11",
+        text: "Dollar-cost averaging (DCA) is an investment strategy in which an investor divides up the total amount to be invested across periodic purchases of a target asset in an effort to reduce the impact of volatility on the overall purchase. The purchases occur regardless of the asset's price and at regular intervals.",
+        metadata: {
+            category: "investment_strategy",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Vector databases are transforming financial analysis by enabling efficient processing of unstructured data for fraud detection, risk analysis, and pattern recognition in market trends.",
-        "metadata": {"technology": "vector databases", "industry": "finance", "application": "risk analysis", "sentiment": "positive", "date": "2025-03-01"}
+        id: "doc12",
+        text: "Value investing is an investment strategy that involves picking stocks that appear to be trading for less than their intrinsic or book value. Value investors actively ferret out stocks they think the stock market is underestimating.",
+        metadata: {
+            category: "investment_strategy",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Bitcoin has experienced increased institutional adoption in 2025, with several major banks now offering cryptocurrency custody services to their wealth management clients.",
-        "metadata": {"asset": "Bitcoin", "metric": "institutional adoption", "sentiment": "positive", "date": "2025-04-02"}
+        id: "doc13",
+        text: "Growth investing is a stock-buying strategy that aims to profit from firms that grow at above-average rates compared to their industry or the market. Growth investors typically look for companies with high growth potential, strong earnings growth, and strong momentum.",
+        metadata: {
+            category: "investment_strategy",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "The Federal Reserve has maintained its cautious approach to interest rates, signaling potential cuts later in 2025 if inflation continues to moderate toward the 2% target.",
-        "metadata": {"institution": "Federal Reserve", "metric": "interest rates", "sentiment": "neutral", "date": "2025-03-25"}
+        id: "doc14",
+        text: "An Exchange-Traded Fund (ETF) is a type of investment fund and exchange-traded product, i.e., they are traded on stock exchanges. ETFs are similar in many ways to mutual funds, except that ETFs are bought and sold throughout the day on stock exchanges.",
+        metadata: {
+            category: "investment_vehicles",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "ESG-focused investment funds have seen record inflows in early 2025, reflecting growing investor demand for sustainability-oriented financial products.",
-        "metadata": {"investment_strategy": "ESG", "metric": "fund inflows", "sentiment": "positive", "date": "2025-04-01"}
+        id: "doc15",
+        text: "A mutual fund is a type of financial vehicle made up of a pool of money collected from many investors to invest in securities like stocks, bonds, money market instruments, and other assets. Mutual funds are operated by professional money managers, who allocate the fund's assets and attempt to produce capital gains or income for the fund's investors.",
+        metadata: {
+            category: "investment_vehicles",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Commercial real estate continues to face headwinds in 2025, with office vacancies remaining elevated as companies maintain flexible work arrangements post-pandemic.",
-        "metadata": {"asset": "commercial real estate", "metric": "vacancies", "sentiment": "negative", "date": "2025-03-20"}
+        id: "doc16",
+        text: "A bond is a fixed-income instrument that represents a loan made by an investor to a borrower (typically corporate or governmental). A bond could be thought of as an I.O.U. between the lender and borrower that includes the details of the loan and its payments.",
+        metadata: {
+            category: "investment_vehicles",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Small-cap stocks have outperformed larger indices in Q1 2025, suggesting investors are finding value in smaller companies amid high valuations in tech giants.",
-        "metadata": {"asset_class": "small-cap stocks", "metric": "performance", "sentiment": "positive", "date": "2025-04-03"}
+        id: "doc17",
+        text: "A stock (also known as equity) is a security that represents the ownership of a fraction of a corporation. This entitles the owner of the stock to a proportion of the corporation's assets and profits equal to how much stock they own. Units of stock are called 'shares.'",
+        metadata: {
+            category: "investment_vehicles",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Venture capital investments in AI startups have reached $45 billion in Q1 2025, representing a 30% increase year-over-year as the technology's commercial applications expand.",
-        "metadata": {"sector": "artificial intelligence", "metric": "venture capital", "sentiment": "positive", "date": "2025-04-10"}
+        id: "doc18",
+        text: "Inflation is the rate at which the general level of prices for goods and services is rising and, consequently, the purchasing power of currency is falling. Central banks attempt to limit inflation — and avoid deflation — in order to keep the economy running smoothly.",
+        metadata: {
+            category: "economic_indicators",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Global supply chain disruptions have eased in early 2025, though regional conflicts continue to create bottlenecks in certain industries and trade routes.",
-        "metadata": {"economic_factor": "supply chain", "metric": "disruptions", "sentiment": "mixed", "date": "2025-03-28"}
+        id: "doc19",
+        text: "Gross Domestic Product (GDP) is the total monetary or market value of all the finished goods and services produced within a country's borders in a specific time period. As a broad measure of overall domestic production, it functions as a comprehensive scorecard of a given country's economic health.",
+        metadata: {
+            category: "economic_indicators",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     },
     {
-        "text": "Financial advisors are increasingly recommending dynamic withdrawal strategies for retirement planning, moving away from the traditional 4% rule due to changing market conditions.",
-        "metadata": {"financial_planning": "retirement", "concept": "withdrawal strategies", "sentiment": "neutral", "date": "2025-02-15"}
-    },
-    {
-        "text": "Private equity firms have accumulated record levels of dry powder in 2025, with over $2.3 trillion available for investments as they wait for more favorable valuation environments.",
-        "metadata": {"investment_type": "private equity", "metric": "dry powder", "sentiment": "neutral", "date": "2025-03-15"}
-    },
-    {
-        "text": "Lithium prices have stabilized after a volatile 2024, as new mining capacity comes online to meet the growing demand from electric vehicle manufacturers.",
-        "metadata": {"commodity": "lithium", "metric": "price", "sentiment": "positive", "date": "2025-04-05"}
-    },
-    {
-        "text": "Embedded finance solutions are gaining traction across industries, with non-financial companies increasingly integrating payment and lending services into their customer experiences.",
-        "metadata": {"industry": "fintech", "innovation": "embedded finance", "sentiment": "positive", "date": "2025-03-22"}
-    },
-    {
-        "text": "Dividend-yielding stocks have seen renewed interest in Q1 2025 as investors seek income amid persistent inflation and relatively high interest rates.",
-        "metadata": {"investment_strategy": "dividend investing", "metric": "investor interest", "sentiment": "positive", "date": "2025-03-31"}
-    },
-    {
-        "text": "The VIX index, a key measure of market volatility, has averaged 18 points in Q1 2025, indicating relatively calm market conditions despite ongoing economic uncertainties.",
-        "metadata": {"indicator": "VIX", "metric": "volatility", "sentiment": "positive", "date": "2025-04-01"}
-    },
-    {
-        "text": "New trade agreements between ASEAN nations and the European Union are expected to boost economic activity in both regions, with implementation planned for late 2025.",
-        "metadata": {"economic_policy": "trade agreements", "regions": ["ASEAN", "European Union"], "sentiment": "positive", "date": "2025-03-18"}
-    },
-    {
-        "text": "Q1 2025 earnings season has begun with mixed results, as 65% of S&P 500 companies reporting so far have exceeded analyst expectations despite challenging economic conditions.",
-        "metadata": {"financial_reporting": "earnings", "index": "S&P 500", "sentiment": "mixed", "date": "2025-04-14"}
-    },
-    {
-        "text": "Art and collectibles have shown strong performance as alternative investments in early 2025, with auction records broken across several categories as investors seek diversification.",
-        "metadata": {"investment_type": "alternative", "asset": "art and collectibles", "sentiment": "positive", "date": "2025-03-10"}
-    },
-    {
-        "text": "New AI-powered risk management tools are allowing financial institutions to better predict and mitigate potential market disruptions through enhanced scenario modeling.",
-        "metadata": {"financial_practice": "risk management", "technology": "AI", "sentiment": "positive", "date": "2025-02-28"}
-    },
-    {
-        "text": "Regional banks have shown improved performance in Q1 2025 after implementing cost-cutting measures and digital transformation initiatives to enhance operational efficiency.",
-        "metadata": {"industry": "banking", "segment": "regional banks", "metric": "performance", "sentiment": "positive", "date": "2025-04-08"}
-    },
-    {
-        "text": "Microsoft (MSFT) has increased its dividend by 12% for 2025, reflecting strong cash flow generation and commitment to shareholder returns.",
-        "metadata": {"company": "Microsoft", "metric": "dividend", "sentiment": "positive", "date": "2025-03-19"}
-    },
-    {
-        "text": "Oil prices have fluctuated between $70-$85 per barrel in Q1 2025 as OPEC+ production adjustments attempt to balance global supply and demand dynamics.",
-        "metadata": {"commodity": "oil", "metric": "price", "sentiment": "neutral", "date": "2025-04-05"}
-    },
-    {
-        "text": "The healthcare sector has underperformed broader market indices in early 2025 amid concerns about potential regulatory changes affecting drug pricing.",
-        "metadata": {"sector": "healthcare", "metric": "performance", "sentiment": "negative", "date": "2025-03-29"}
-    },
-    {
-        "text": "Corporate bond yields have declined by 25 basis points on average during Q1 2025, reflecting improved credit conditions and strong investor demand for fixed income.",
-        "metadata": {"asset": "corporate bonds", "metric": "yields", "sentiment": "positive", "date": "2025-04-01"}
-    },
-    {
-        "text": "The Japanese yen has strengthened against major currencies following the Bank of Japan's decision to gradually normalize its monetary policy stance.",
-        "metadata": {"currency": "Japanese yen", "metric": "exchange rate", "sentiment": "positive", "date": "2025-03-26"}
+        id: "doc20",
+        text: "The unemployment rate represents the number of unemployed as a percentage of the labor force. Labor force data are restricted to people 16 years of age and older, who currently reside in 1 of the 50 states or the District of Columbia, who do not reside in institutions (e.g., penal and mental facilities, homes for the aged), and who are not on active duty in the Armed Forces.",
+        metadata: {
+            category: "economic_indicators",
+            source: "financial_encyclopedia",
+            relevance: "high"
+        }
     }
 ];
 
@@ -386,127 +422,57 @@ const analyzeImage = async (base64Image: string): Promise<string> => {
 };
 
 // ---------------------------
-// EXPORT THE FUNCTIONS NEEDED BY ChatInterface.tsx
+// Export client-side service functions
 // ---------------------------
-export const sendChatMessage = async (message: string): Promise<string> => {
+export const sendChatMessage = async (query: string): Promise<string> => {
     try {
-        const lowerMessage = message.toLowerCase();
+        const lowerQuery = query.toLowerCase();
 
-        // Branch: Sentiment Analysis
-        if (lowerMessage.includes("sentiment analysis")) {
-            const company = extractCompanyNameForSentiment(message);
+        if (lowerQuery.includes("sentiment analysis")) {
+            const company = extractCompanyNameForSentiment(query);
             if (company) {
                 return await performSentimentAnalysis(company);
             } else {
                 return "Unable to extract company name for sentiment analysis. Please include the company name clearly.";
             }
-        }
-
-        // Branch: News Headlines
-        if (lowerMessage.includes("news")) {
-            const company = extractCompanyNameForNews(message);
+        } else if (lowerQuery.includes("news")) {
+            const company = extractCompanyNameForNews(query);
             if (company) {
                 return await getStockNews(company);
             } else {
                 return "Please specify the company name to fetch news.";
             }
-        }
-
-        // Branch: Stock Price / Quote
-        if (lowerMessage.includes("price") || lowerMessage.includes("stock") || lowerMessage.includes("quote")) {
-            const ticker = await extractStockSymbol(message);
+        } else if (lowerQuery.includes("price") || lowerQuery.includes("stock") || lowerQuery.includes("quote")) {
+            const ticker = await extractStockSymbol(query);
             if (ticker) {
                 const stockInfo = await getStockQuoteAlphaVantage(ticker);
-                const context = retrieveContext(message, 2);
+                const context = retrieveContext(query, 2);
                 return `${context}\n${stockInfo}`;
             } else {
                 return "I couldn't determine which company's stock price you're looking for. Please specify a company name.";
             }
+        } else {
+            const context = retrieveContext(query, 3);
+            const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.\n\nContext: ${context}\n\nUser query: ${query}`;
+            return await callGeminiLLM(prompt);
         }
-
-        // Default: General financial query
-        const context = retrieveContext(message, 3);
-        const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.\n\nContext: ${context}\n\nUser query: ${message}`;
-        return await callGeminiLLM(prompt);
     } catch (error: any) {
-        console.error("Error processing message:", error);
-        return `Sorry, I encountered an error while processing your request: ${error.message}`;
+        console.error("Chatbot error:", error);
+        return `Error processing your request: ${error.message}`;
     }
 };
 
-export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
+export const uploadAndAnalyzeImage = async (imageBase64: string): Promise<string> => {
     try {
-        return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload = async (event) => {
-                try {
-                    if (!event.target?.result) {
-                        reject("Failed to read file");
-                        return;
-                    }
-                    
-                    // Get the base64 string (remove the data URL prefix)
-                    const base64String = (event.target.result as string).split(',')[1];
-                    const analysis = await analyzeImage(base64String);
-                    resolve(analysis);
-                } catch (error: any) {
-                    console.error("Error analyzing image:", error);
-                    reject(error.message || "Error analyzing image");
-                }
-            };
-            
-            reader.onerror = () => {
-                reject("Error reading file");
-            };
-            
-            reader.readAsDataURL(file);
-        });
+        return await analyzeImage(imageBase64);
     } catch (error: any) {
-        console.error("Error with image upload:", error);
-        return `Error processing uploaded image: ${error.message}`;
+        console.error("Error analyzing image:", error);
+        return `Error analyzing image: ${error.message}`;
     }
 };
 
-// Export the handler for Next.js API routes if needed
-export default async function handler(req: any, res: any) {
-    if (req.method === 'POST') {
-        const { query, imageBase64 } = req.body;
-
-        if (imageBase64) {
-            try {
-                const analysisResult = await analyzeImage(imageBase64);
-                res.status(200).json({ result: analysisResult });
-            } catch (error: any) {
-                res.status(500).json({ error: error.message || 'Error analyzing image' });
-            }
-            return;
-        }
-
-        if (query) {
-            try {
-                const result = await sendChatMessage(query);
-                res.status(200).json({ result });
-            } catch (error: any) {
-                res.status(500).json({ error: error.message || 'Error processing your request' });
-            }
-            return;
-        }
-
-        res.status(400).json({ error: 'No query or image provided' });
-    } else if (req.method === 'OPTIONS') {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-        res.status(200).end();
-    } else {
-        res.status(405).json({ error: 'Method Not Allowed' });
-    }
-}
-
-export const config = {
-    api: {
-        bodyParser: {
-            sizeLimit: '10mb', // Adjust as needed for image uploads
-        },
-    },
+// Keep a default export for backward compatibility
+export default {
+    sendChatMessage,
+    uploadAndAnalyzeImage
 };
