@@ -385,6 +385,89 @@ const analyzeImage = async (base64Image: string): Promise<string> => {
     }
 };
 
+// ---------------------------
+// EXPORT THE FUNCTIONS NEEDED BY ChatInterface.tsx
+// ---------------------------
+export const sendChatMessage = async (message: string): Promise<string> => {
+    try {
+        const lowerMessage = message.toLowerCase();
+
+        // Branch: Sentiment Analysis
+        if (lowerMessage.includes("sentiment analysis")) {
+            const company = extractCompanyNameForSentiment(message);
+            if (company) {
+                return await performSentimentAnalysis(company);
+            } else {
+                return "Unable to extract company name for sentiment analysis. Please include the company name clearly.";
+            }
+        }
+
+        // Branch: News Headlines
+        if (lowerMessage.includes("news")) {
+            const company = extractCompanyNameForNews(message);
+            if (company) {
+                return await getStockNews(company);
+            } else {
+                return "Please specify the company name to fetch news.";
+            }
+        }
+
+        // Branch: Stock Price / Quote
+        if (lowerMessage.includes("price") || lowerMessage.includes("stock") || lowerMessage.includes("quote")) {
+            const ticker = await extractStockSymbol(message);
+            if (ticker) {
+                const stockInfo = await getStockQuoteAlphaVantage(ticker);
+                const context = retrieveContext(message, 2);
+                return `${context}\n${stockInfo}`;
+            } else {
+                return "I couldn't determine which company's stock price you're looking for. Please specify a company name.";
+            }
+        }
+
+        // Default: General financial query
+        const context = retrieveContext(message, 3);
+        const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.\n\nContext: ${context}\n\nUser query: ${message}`;
+        return await callGeminiLLM(prompt);
+    } catch (error: any) {
+        console.error("Error processing message:", error);
+        return `Sorry, I encountered an error while processing your request: ${error.message}`;
+    }
+};
+
+export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
+    try {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = async (event) => {
+                try {
+                    if (!event.target?.result) {
+                        reject("Failed to read file");
+                        return;
+                    }
+                    
+                    // Get the base64 string (remove the data URL prefix)
+                    const base64String = (event.target.result as string).split(',')[1];
+                    const analysis = await analyzeImage(base64String);
+                    resolve(analysis);
+                } catch (error: any) {
+                    console.error("Error analyzing image:", error);
+                    reject(error.message || "Error analyzing image");
+                }
+            };
+            
+            reader.onerror = () => {
+                reject("Error reading file");
+            };
+            
+            reader.readAsDataURL(file);
+        });
+    } catch (error: any) {
+        console.error("Error with image upload:", error);
+        return `Error processing uploaded image: ${error.message}`;
+    }
+};
+
+// Export the handler for Next.js API routes if needed
 export default async function handler(req: any, res: any) {
     if (req.method === 'POST') {
         const { query, imageBase64 } = req.body;
@@ -400,42 +483,10 @@ export default async function handler(req: any, res: any) {
         }
 
         if (query) {
-            const lowerQuery = query.toLowerCase();
-
             try {
-                if (lowerQuery.includes("sentiment analysis")) {
-                    const company = extractCompanyNameForSentiment(query);
-                    if (company) {
-                        const result = await performSentimentAnalysis(company);
-                        res.status(200).json({ result });
-                    } else {
-                        res.status(200).json({ result: "Unable to extract company name for sentiment analysis. Please include the company name clearly." });
-                    }
-                } else if (lowerQuery.includes("news")) {
-                    const company = extractCompanyNameForNews(query);
-                    if (company) {
-                        const result = await getStockNews(company);
-                        res.status(200).json({ result });
-                    } else {
-                        res.status(200).json({ result: "Please specify the company name to fetch news." });
-                    }
-                } else if (lowerQuery.includes("price") || lowerQuery.includes("stock") || lowerQuery.includes("quote")) {
-                    const ticker = await extractStockSymbol(query);
-                    if (ticker) {
-                        const stockInfo = await getStockQuoteAlphaVantage(ticker);
-                        const context = retrieveContext(query, 2);
-                        res.status(200).json({ result: `${context}\n${stockInfo}` });
-                    } else {
-                        res.status(200).json({ result: "I couldn't determine which company's stock price you're looking for. Please specify a company name." });
-                    }
-                } else {
-                    const context = retrieveContext(query, 3);
-                    const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.\n\nContext: ${context}\n\nUser query: ${query}`;
-                    const result = await callGeminiLLM(prompt);
-                    res.status(200).json({ result });
-                }
+                const result = await sendChatMessage(query);
+                res.status(200).json({ result });
             } catch (error: any) {
-                console.error("Chatbot error:", error);
                 res.status(500).json({ error: error.message || 'Error processing your request' });
             }
             return;
