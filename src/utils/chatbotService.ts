@@ -389,17 +389,37 @@ const retrieveContext = (query: string, topK: number = 2): string => {
 };
 
 // ---------------------------
-// Call Gemini LLM
+// Call Gemini LLM with fallback mechanism
 // ---------------------------
 const callGeminiLLM = async (prompt: string, model: string = "gemini-2.0-flash"): Promise<string> => {
     try {
+        // Try with primary model first
         const modelInstance = genAI.getGenerativeModel({ model });
         const result = await modelInstance.generateContent(prompt);
         const response = await result.response;
         return response.text();
     } catch (error: any) {
         console.error("Error calling Gemini API:", error);
-        return `I'm having trouble accessing my AI capabilities right now. Please try again later. Error: ${error.message}`;
+        
+        // If the error message contains "overloaded", try with a different model
+        if (error.message && error.message.includes("overloaded")) {
+            try {
+                console.log("Primary model overloaded, trying fallback model...");
+                // Use different model as fallback
+                const fallbackModel = "gemini-1.5-flash"; // Using older model as fallback
+                const fallbackModelInstance = genAI.getGenerativeModel({ model: fallbackModel });
+                const fallbackResult = await fallbackModelInstance.generateContent(prompt);
+                const fallbackResponse = await fallbackResult.response;
+                return fallbackResponse.text();
+            } catch (fallbackError: any) {
+                console.error("Error with fallback model:", fallbackError);
+                // If fallback fails, return a helpful error message
+                return `I'm experiencing high traffic right now. Please try your request again in a few moments. If you're asking about stock data or news, you can try being more specific with your query.`;
+            }
+        }
+        
+        // For errors not related to overloading
+        return `I'm having trouble accessing my AI capabilities right now. Please try again later. If you're looking for specific financial information, try asking about a specific stock or news item instead.`;
     }
 };
 
@@ -699,9 +719,20 @@ export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
     }
 };
 
-// Main chat function to process user messages
+// Main chat function to process user messages with additional error handling
 export const sendChatMessage = async (message: string): Promise<string> => {
     try {
+        // Direct queries that don't need AI processing
+        if (message.toLowerCase().includes("how to open bank account")) {
+            return "As a financial assistant, I can explain that opening a bank account typically requires:\n\n" +
+                "1. Choosing a bank or credit union\n" +
+                "2. Gathering identification documents (ID, SSN/TIN)\n" +
+                "3. Providing proof of address\n" +
+                "4. Completing the application\n" +
+                "5. Making an initial deposit\n\n" +
+                "Each financial institution has different requirements. For specific details, I recommend contacting your preferred bank directly or visiting their website.";
+        }
+        
         // Extract potential company name from query for stock price
         const stockSymbol = await extractStockSymbol(message.toLowerCase());
         if (stockSymbol) {
@@ -738,10 +769,12 @@ export const sendChatMessage = async (message: string): Promise<string> => {
         Keep your responses concise and focused on financial topics.
         `;
 
-        // Call the LLM
+        // Call the LLM with proper error handling
         return await callGeminiLLM(prompt);
     } catch (error: any) {
         console.error("Error processing message:", error);
-        return `I encountered an error processing your request: ${error.message}. Please try again.`;
+        // Provide a helpful response even when processing fails
+        return `I encountered an error processing your request. If you're looking for financial information, try asking a more specific question about stocks, market indices, or financial terms.`;
     }
 };
+
