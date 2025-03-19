@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -215,6 +214,106 @@ const documents = [
             source: "financial_encyclopedia",
             relevance: "high"
         }
+    },
+    {
+        "text": "Tesla (TSLA) stock has faced significant challenges in Q1 2025, with deliveries tracking approximately 31,000 units lower than Q1 2024. Wall Street analysts have revised delivery estimates downward to around 356,000 vehicles.",
+        "metadata": { "company": "Tesla", "metric": "deliveries", "sentiment": "negative", "date": "2025-03-14" }
+    },
+    {
+        "text": "Vector databases are transforming financial analysis by enabling efficient processing of unstructured data for fraud detection, risk analysis, and pattern recognition in market trends.",
+        "metadata": { "technology": "vector databases", "industry": "finance", "application": "risk analysis", "sentiment": "positive", "date": "2025-03-01" }
+    },
+    {
+        "text": "Bitcoin has experienced increased institutional adoption in 2025, with several major banks now offering cryptocurrency custody services to their wealth management clients.",
+        "metadata": { "asset": "Bitcoin", "metric": "institutional adoption", "sentiment": "positive", "date": "2025-04-02" }
+    },
+    {
+        "text": "The Federal Reserve has maintained its cautious approach to interest rates, signaling potential cuts later in 2025 if inflation continues to moderate toward the 2% target.",
+        "metadata": { "institution": "Federal Reserve", "metric": "interest rates", "sentiment": "neutral", "date": "2025-03-25" }
+    },
+    {
+        "text": "ESG-focused investment funds have seen record inflows in early 2025, reflecting growing investor demand for sustainability-oriented financial products.",
+        "metadata": { "investment_strategy": "ESG", "metric": "fund inflows", "sentiment": "positive", "date": "2025-04-01" }
+    },
+    {
+        "text": "Commercial real estate continues to face headwinds in 2025, with office vacancies remaining elevated as companies maintain flexible work arrangements post-pandemic.",
+        "metadata": { "asset": "commercial real estate", "metric": "vacancies", "sentiment": "negative", "date": "2025-03-20" }
+    },
+    {
+        "text": "Small-cap stocks have outperformed larger indices in Q1 2025, suggesting investors are finding value in smaller companies amid high valuations in tech giants.",
+        "metadata": { "asset_class": "small-cap stocks", "metric": "performance", "sentiment": "positive", "date": "2025-04-03" }
+    },
+    {
+        "text": "Venture capital investments in AI startups have reached $45 billion in Q1 2025, representing a 30% increase year-over-year as the technology's commercial applications expand.",
+        "metadata": { "sector": "artificial intelligence", "metric": "venture capital", "sentiment": "positive", "date": "2025-04-10" }
+    },
+    {
+        "text": "Global supply chain disruptions have eased in early 2025, though regional conflicts continue to create bottlenecks in certain industries and trade routes.",
+        "metadata": { "economic_factor": "supply chain", "metric": "disruptions", "sentiment": "mixed", "date": "2025-03-28" }
+    },
+    {
+        "text": "Financial advisors are increasingly recommending dynamic withdrawal strategies for retirement planning, moving away from the traditional 4% rule due to changing market conditions.",
+        "metadata": { "financial_planning": "retirement", "concept": "withdrawal strategies", "sentiment": "neutral", "date": "2025-02-15" }
+    },
+    {
+        "text": "Private equity firms have accumulated record levels of dry powder in 2025, with over $2.3 trillion available for investments as they wait for more favorable valuation environments.",
+        "metadata": { "investment_type": "private equity", "metric": "dry powder", "sentiment": "neutral", "date": "2025-03-15" }
+    },
+    {
+        "text": "Lithium prices have stabilized after a volatile 2024, as new mining capacity comes online to meet the growing demand from electric vehicle manufacturers.",
+        "metadata": { "commodity": "lithium", "metric": "price", "sentiment": "positive", "date": "2025-04-05" }
+    },
+    {
+        "text": "Embedded finance solutions are gaining traction across industries, with non-financial companies increasingly integrating payment and lending services into their customer experiences.",
+        "metadata": { "industry": "fintech", "innovation": "embedded finance", "sentiment": "positive", "date": "2025-03-22" }
+    },
+    {
+        "text": "Dividend-yielding stocks have seen renewed interest in Q1 2025 as investors seek income amid persistent inflation and relatively high interest rates.",
+        "metadata": { "investment_strategy": "dividend investing", "metric": "investor interest", "sentiment": "positive", "date": "2025-03-31" }
+    },
+    {
+        "text": "The VIX index, a key measure of market volatility, has averaged 18 points in Q1 2025, indicating relatively calm market conditions despite ongoing economic uncertainties.",
+        "metadata": { "indicator": "VIX", "metric": "volatility", "sentiment": "positive", "date": "2025-04-01" }
+    },
+    {
+        "text": "New trade agreements between ASEAN nations and the European Union are expected to boost economic activity in both regions, with implementation planned for late 2025.",
+        "metadata": { "economic_policy": "trade agreements", "regions": ["ASEAN", "European Union"], "sentiment": "positive", "date": "2025-03-18" }
+    },
+    {
+        "text": "Q1 2025 earnings season has begun with mixed results, as 65% of S&P 500 companies reporting so far have exceeded analyst expectations despite challenging economic conditions.",
+        "metadata": { "financial_reporting": "earnings", "index": "S&P 500", "sentiment": "mixed", "date": "2025-04-14" }
+    },
+    {
+        "text": "Art and collectibles have shown strong performance as alternative investments in early 2025, with auction records broken across several categories as investors seek diversification.",
+        "metadata": { "investment_type": "alternative", "asset": "art and collectibles", "sentiment": "positive", "date": "2025-03-10" }
+    },
+    {
+        "text": "New AI-powered risk management tools are allowing financial institutions to better predict and mitigate potential market disruptions through enhanced scenario modeling.",
+        "metadata": { "financial_practice": "risk management", "technology": "AI", "sentiment": "positive", "date": "2025-02-28" }
+    },
+    {
+        "text": "Regional banks have shown improved performance in Q1 2025 after implementing cost-cutting measures and digital transformation initiatives to enhance operational efficiency.",
+        "metadata": { "industry": "banking", "segment": "regional banks", "metric": "performance", "sentiment": "positive", "date": "2025-04-08" }
+    },
+    {
+        "text": "Microsoft (MSFT) has increased its dividend by 12% for 2025, reflecting strong cash flow generation and commitment to shareholder returns.",
+        "metadata": { "company": "Microsoft", "metric": "dividend", "sentiment": "positive", "date": "2025-03-19" }
+    },
+    {
+        "text": "Oil prices have fluctuated between $70-$85 per barrel in Q1 2025 as OPEC+ production adjustments attempt to balance global supply and demand dynamics.",
+        "metadata": { "commodity": "oil", "metric": "price", "sentiment": "neutral", "date": "2025-04-05" }
+    },
+    {
+        "text": "The healthcare sector has underperformed broader market indices in early 2025 amid concerns about potential regulatory changes affecting drug pricing.",
+        "metadata": { "sector": "healthcare", "metric": "performance", "sentiment": "negative", "date": "2025-03-29" }
+    },
+    {
+        "text": "Corporate bond yields have declined by 25 basis points on average during Q1 2025, reflecting improved credit conditions and strong investor demand for fixed income.",
+        "metadata": { "asset": "corporate bonds", "metric": "yields", "sentiment": "positive", "date": "2025-04-01" }
+    },
+    {
+        "text": "The Japanese yen has strengthened against major currencies following the Bank of Japan's decision to gradually normalize its monetary policy stance.",
+        "metadata": { "currency": "Japanese yen", "metric": "exchange rate", "sentiment": "positive", "date": "2025-03-26" }
     }
 ];
 
@@ -411,21 +510,6 @@ const getStockNews = async (company: string): Promise<string> => {
 // ---------------------------
 // Analyze Uploaded Image/Graph Functionality
 // ---------------------------
-// Update to accept File object instead of string
-const analyzeImage = async (file: File): Promise<string> => {
-    try {
-        // Convert File to base64
-        const base64Image = await fileToBase64(file);
-        
-        const prompt = `You are a financial analyst with expertise in stock market trends and financial charts. The following image (provided as a base64-encoded string) represents a financial graph—such as an S&P 500 growth chart. Please analyze the chart and provide detailed insights on trends, key performance metrics, and any notable fluctuations related to the market.\nImage (base64): ${base64Image}`;
-        const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
-        return analysis;
-    } catch (error: any) {
-        console.error("Error processing image:", error);
-        return `Error processing image: ${error.message}`;
-    }
-};
-
 // Helper function to convert File to base64
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
@@ -442,6 +526,20 @@ const fileToBase64 = (file: File): Promise<string> => {
         };
         reader.onerror = (error) => reject(error);
     });
+};
+
+const analyzeImage = async (file: File): Promise<string> => {
+    try {
+        // Convert File to base64
+        const base64Image = await fileToBase64(file);
+
+        const prompt = `You are a financial analyst with expertise in stock market trends and financial charts. The following image (provided as a base64-encoded string) represents a financial graph—such as an S&P 500 growth chart. Please analyze the chart and provide detailed insights on trends, key performance metrics, and any notable fluctuations related to the market.\nImage (base64): ${base64Image}`;
+        const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
+        return analysis;
+    } catch (error: any) {
+        console.error("Error processing image:", error);
+        return `Error analyzing image: ${error.message}`;
+    }
 };
 
 // ---------------------------
