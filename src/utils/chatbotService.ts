@@ -566,9 +566,8 @@ export const sendChatMessage = async (query: string): Promise<string> => {
         } else if (lowerQuery.includes("price") || lowerQuery.includes("stock") || lowerQuery.includes("quote")) {
             const ticker = await extractStockSymbol(query);
             if (ticker) {
-                const stockInfo = await getStockQuoteAlphaVantage(ticker);
-                const context = retrieveContext(query, 2);
-                return `${context}\n${stockInfo}`;
+                // Return only the stock quote without context
+                return await getStockQuoteAlphaVantage(ticker);
             } else {
                 return "I couldn't determine which company's stock price you're looking for. Please specify a company name.";
             }
