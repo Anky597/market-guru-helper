@@ -655,3 +655,93 @@ const getStockNews = async (company: string): Promise<string> => {
 // Helper function to convert File to base64
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = (error) => reject(error);
+    });
+};
+
+// Function to analyze an uploaded image using Gemini's vision capability
+export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
+    try {
+        // Convert the image to base64
+        const base64Image = await fileToBase64(file);
+        
+        // Create prompt for image analysis
+        const imageAnalysisPrompt = `
+        Analyze this financial chart or image. 
+        - If it's a chart: describe the trend, key patterns, potential support/resistance levels if visible.
+        - If it's a financial document: summarize the key financial information.
+        - If it's something else: provide a brief description and any financial relevance.
+        
+        Keep your analysis focused on finance-related insights.
+        `;
+        
+        // Call Gemini with the image
+        const modelInstance = genAI.getGenerativeModel({ model: "gemini-2.0-pro" });
+        
+        // Prepare image content
+        const imageContent = {
+            inlineData: {
+                data: base64Image.split(",")[1], // Remove the data URL prefix
+                mimeType: file.type
+            }
+        };
+        
+        // Call Gemini with the image and prompt
+        const result = await modelInstance.generateContent([imageAnalysisPrompt, imageContent]);
+        const response = await result.response;
+        return response.text();
+    } catch (error: any) {
+        console.error("Error analyzing image:", error);
+        return `I couldn't analyze the image: ${error.message}. Please try uploading a different image.`;
+    }
+};
+
+// Main chat function to process user messages
+export const sendChatMessage = async (message: string): Promise<string> => {
+    try {
+        // Extract potential company name from query for stock price
+        const stockSymbol = await extractStockSymbol(message.toLowerCase());
+        if (stockSymbol) {
+            return await getStockQuoteAlphaVantage(stockSymbol);
+        }
+
+        // Check if request is for sentiment analysis
+        const companyForSentiment = extractCompanyNameForSentiment(message.toLowerCase());
+        if (companyForSentiment) {
+            return await performSentimentAnalysis(companyForSentiment);
+        }
+        
+        // Check if request is for news
+        const companyForNews = extractCompanyNameForNews(message.toLowerCase());
+        if (companyForNews) {
+            return await getStockNews(companyForNews);
+        }
+
+        // Get relevant context for the query
+        const context = retrieveContext(message);
+        
+        // Construct the prompt with context
+        const prompt = `
+        You are a helpful financial assistant. Answer the following query based on the context and your knowledge.
+        
+        CONTEXT:
+        ${context}
+        
+        USER QUERY:
+        ${message}
+        
+        If the query is about a specific stock, market data, or financial term that might be in the context, focus on those details.
+        If you're unsure or the question is outside the scope of a financial assistant, politely say so.
+        Keep your responses concise and focused on financial topics.
+        `;
+
+        // Call the LLM
+        return await callGeminiLLM(prompt);
+    } catch (error: any) {
+        console.error("Error processing message:", error);
+        return `I encountered an error processing your request: ${error.message}. Please try again.`;
+    }
+};
