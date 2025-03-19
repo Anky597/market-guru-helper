@@ -26,6 +26,38 @@ export type Message = {
     timestamp: Date;
 };
 
+// Alpha Vantage NEWS_SENTIMENT response types
+interface AlphaVantageFeed {
+    title: string;
+    url: string;
+    time_published: string;
+    authors: string[];
+    summary: string;
+    banner_image: string;
+    source: string;
+    category_within_source: string;
+    source_domain: string;
+    topics: {
+        topic: string;
+        relevance_score: string;
+    }[];
+    overall_sentiment_score: number;
+    overall_sentiment_label: string;
+    ticker_sentiment: {
+        ticker: string;
+        relevance_score: string;
+        ticker_sentiment_score: string;
+        ticker_sentiment_label: string;
+    }[];
+}
+
+interface AlphaVantageSentimentResponse {
+    items: string;
+    sentiment_score_definition: string;
+    relevance_score_definition: string;
+    feed: AlphaVantageFeed[];
+}
+
 // ---------------------------
 // Initialize Gemini API
 // ---------------------------
@@ -471,39 +503,116 @@ const extractCompanyNameForNews = (query: string): string | null => {
     return null;
 };
 
-const performSentimentAnalysis = async (company: string): Promise<string> => {
+// ---------------------------
+// Alpha Vantage: Fetch News Sentiment Data
+// ---------------------------
+const getNewsSentimentAlphaVantage = async (ticker: string): Promise<string> => {
     try {
-        const headlines = await fetchCompanyNews(company, 5);
-        if (!headlines || headlines.length === 0) {
-            return `No news headlines found for ${company} for sentiment analysis.`;
-        }
-        let prompt = `Analyze the sentiment of the following news headlines about ${company}:\n`;
-        headlines.forEach((headline) => {
-            prompt += `- ${headline}\n`;
+        const response = await axios.get("https://www.alphavantage.co/query", {
+            params: {
+                function: "NEWS_SENTIMENT",
+                tickers: ticker,
+                limit: 10,
+                apikey: API_KEYS.alphaVantage,
+            },
+            timeout: 10000,
         });
-        prompt += `\nProvide a summary sentiment analysis (positive, negative, or neutral) along with reasons.`;
-        const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
-        return analysis;
+        
+        const data = response.data as AlphaVantageSentimentResponse;
+        
+        if (data.feed && data.feed.length > 0) {
+            // Extract the sentiment data and format
+            let overallSentiment = 0;
+            let sentimentCounts = {
+                positive: 0,
+                neutral: 0,
+                negative: 0
+            };
+            
+            const relevantArticles = data.feed.slice(0, 5); // Limit to 5 most recent articles
+            
+            // Calculate overall sentiment from articles and ticker-specific sentiment
+            relevantArticles.forEach(article => {
+                const tickerSentiments = article.ticker_sentiment.filter(ts => 
+                    ts.ticker.toUpperCase() === ticker.toUpperCase()
+                );
+                
+                if (tickerSentiments.length > 0) {
+                    const score = parseFloat(tickerSentiments[0].ticker_sentiment_score);
+                    overallSentiment += score;
+                    
+                    // Count sentiment labels
+                    const label = tickerSentiments[0].ticker_sentiment_label.toLowerCase();
+                    if (label.includes('positive')) {
+                        sentimentCounts.positive++;
+                    } else if (label.includes('negative')) {
+                        sentimentCounts.negative++;
+                    } else {
+                        sentimentCounts.neutral++;
+                    }
+                }
+            });
+            
+            // Calculate average sentiment
+            const avgSentiment = overallSentiment / relevantArticles.length;
+            
+            // Determine overall sentiment label
+            let sentimentLabel = "neutral";
+            if (avgSentiment > 0.25) sentimentLabel = "bullish";
+            else if (avgSentiment < -0.25) sentimentLabel = "bearish";
+            
+            // Format the response
+            let result = `## Sentiment Analysis for ${ticker}\n\n`;
+            result += `Overall Market Sentiment: **${sentimentLabel.toUpperCase()}**\n\n`;
+            result += `Based on analysis of ${relevantArticles.length} recent news articles:\n`;
+            result += `- Positive mentions: ${sentimentCounts.positive}\n`;
+            result += `- Neutral mentions: ${sentimentCounts.neutral}\n`;
+            result += `- Negative mentions: ${sentimentCounts.negative}\n\n`;
+            
+            // Add recent headlines
+            result += `### Recent Headlines:\n`;
+            relevantArticles.forEach(article => {
+                const tickerSentiment = article.ticker_sentiment.find(ts => 
+                    ts.ticker.toUpperCase() === ticker.toUpperCase()
+                );
+                
+                const sentimentEmoji = tickerSentiment ? 
+                    (tickerSentiment.ticker_sentiment_label.includes('Bullish') ? '📈' : 
+                     tickerSentiment.ticker_sentiment_label.includes('Bearish') ? '📉' : '➖') : '➖';
+                
+                result += `- ${sentimentEmoji} **${article.title}**\n`;
+                result += `  _${new Date(article.time_published).toLocaleDateString()}_\n`;
+            });
+            
+            return result;
+        } else if (data.information) {
+            console.error("Alpha Vantage API limit reached:", data.information);
+            return `Unable to retrieve sentiment data for ${ticker} - API limit reached. Please try again later.`;
+        } else {
+            return `No sentiment data found for ${ticker}.`;
+        }
     } catch (error: any) {
-        console.error("Error performing sentiment analysis:", error);
-        return `Error performing sentiment analysis: ${error.message}`;
+        console.error("Error fetching news sentiment:", error);
+        return `Error retrieving sentiment data for ${ticker}: ${error.message}`;
     }
 };
 
-const getStockNews = async (company: string): Promise<string> => {
+// ---------------------------
+// Perform Sentiment Analysis
+// ---------------------------
+const performSentimentAnalysis = async (company: string): Promise<string> => {
     try {
-        const headlines = await fetchCompanyNews(company, 5);
-        if (!headlines || headlines.length === 0) {
-            return `No news headlines found for ${company}.`;
+        // First convert company name to ticker
+        const ticker = await convertCompanyToTicker(company);
+        if (!ticker) {
+            return `Unable to find ticker symbol for ${company}. Please try another company name.`;
         }
-        let result = `News headlines for ${company}:\n`;
-        headlines.forEach((headline) => {
-            result += `- ${headline}\n`;
-        });
-        return result;
+        
+        // Get sentiment analysis from Alpha Vantage
+        return await getNewsSentimentAlphaVantage(ticker);
     } catch (error: any) {
-        console.error("Error fetching news:", error);
-        return `Error fetching news for ${company}: ${error.message}`;
+        console.error("Error performing sentiment analysis:", error);
+        return `Error performing sentiment analysis: ${error.message}`;
     }
 };
 
