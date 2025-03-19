@@ -1,3 +1,4 @@
+
 import { toast } from "sonner";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -56,6 +57,7 @@ interface AlphaVantageSentimentResponse {
     sentiment_score_definition: string;
     relevance_score_definition: string;
     feed: AlphaVantageFeed[];
+    information?: string; // Add optional information property for API limit reached messages
 }
 
 // ---------------------------
@@ -613,6 +615,26 @@ const performSentimentAnalysis = async (company: string): Promise<string> => {
     } catch (error: any) {
         console.error("Error performing sentiment analysis:", error);
         return `Error performing sentiment analysis: ${error.message}`;
+    }
+};
+
+// ---------------------------
+// Get Stock News
+// ---------------------------
+const getStockNews = async (company: string): Promise<string> => {
+    try {
+        const headlines = await fetchCompanyNews(company, 5);
+        if (!headlines || headlines.length === 0) {
+            return `No news headlines found for ${company}.`;
+        }
+        let result = `## News headlines for ${company}:\n\n`;
+        headlines.forEach((headline, index) => {
+            result += `${index + 1}. ${headline}\n`;
+        });
+        return result;
+    } catch (error: any) {
+        console.error("Error fetching news:", error);
+        return `Error fetching news for ${company}: ${error.message}`;
     }
 };
 
