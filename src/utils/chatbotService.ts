@@ -1,4 +1,3 @@
-
 import { toast } from "sonner";
 import axios from "axios";
 import { GoogleGenerativeAI } from "@google/generative-ai";
@@ -461,28 +460,39 @@ const getStockQuoteAlphaVantage = async (symbol: string): Promise<string> => {
 };
 
 // ---------------------------
-// NewsAPI Integration: Fetch Company News Headlines
+// Alpha Vantage - Fetch Company News Headlines (Replacing NewsAPI)
 // ---------------------------
-const fetchCompanyNews = async (company: string, count: number = 5): Promise<string[]> => {
+const fetchCompanyNewsAlphaVantage = async (company: string, count: number = 5): Promise<string[]> => {
     try {
-        const response = await axios.get("https://newsapi.org/v2/everything", {
+        // First convert company name to ticker
+        const ticker = await convertCompanyToTicker(company);
+        if (!ticker) {
+            return [];
+        }
+
+        const response = await axios.get("https://www.alphavantage.co/query", {
             params: {
-                q: company,
-                sortBy: "publishedAt",
-                pageSize: count,
-                language: "en",
-                apiKey: API_KEYS.newsApi,
+                function: "NEWS_SENTIMENT",
+                tickers: ticker,
+                limit: count,
+                apikey: API_KEYS.alphaVantage,
             },
             timeout: 10000,
         });
-        const data = response.data;
-        if (data.articles && data.articles.length > 0) {
-            return data.articles.map((article: any) => article.title);
+        
+        const data = response.data as AlphaVantageSentimentResponse;
+        
+        if (data.feed && data.feed.length > 0) {
+            // Extract headlines from feed
+            return data.feed.slice(0, count).map(article => article.title);
+        } else if (data.information) {
+            console.error("Alpha Vantage API limit reached:", data.information);
+            return [];
         } else {
             return [];
         }
     } catch (error: any) {
-        console.error("Error fetching news:", error);
+        console.error("Error fetching news from Alpha Vantage:", error);
         return [];
     }
 };
@@ -497,7 +507,8 @@ const extractCompanyNameForSentiment = (query: string): string | null => {
 };
 
 const extractCompanyNameForNews = (query: string): string | null => {
-    const pattern = /news\s+(?:related\s+to|about|for)\s+([\w\s&]+?)(?:\s+(?:stock|stocks))?$/;
+    // Updated pattern to better match news queries
+    const pattern = /news\s+(?:about|for|related\s+to)?\s+([A-Za-z\s&]+?)(?:\s+(?:stock|stocks))?$/i;
     const match = query.match(pattern);
     if (match && match[1]) {
         return match[1].trim();
@@ -619,13 +630,13 @@ const performSentimentAnalysis = async (company: string): Promise<string> => {
 };
 
 // ---------------------------
-// Get Stock News
+// Get Stock News (Updated to use Alpha Vantage)
 // ---------------------------
 const getStockNews = async (company: string): Promise<string> => {
     try {
-        const headlines = await fetchCompanyNews(company, 5);
+        const headlines = await fetchCompanyNewsAlphaVantage(company, 5);
         if (!headlines || headlines.length === 0) {
-            return `No news headlines found for ${company}.`;
+            return `No news headlines found for ${company}. Alpha Vantage may have limited data for this company or the API limit has been reached.`;
         }
         let result = `## News headlines for ${company}:\n\n`;
         headlines.forEach((headline, index) => {
@@ -644,87 +655,3 @@ const getStockNews = async (company: string): Promise<string> => {
 // Helper function to convert File to base64
 const fileToBase64 = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                // Remove the data URL prefix (e.g., "data:image/jpeg;base64,")
-                const base64 = reader.result.split(',')[1];
-                resolve(base64);
-            } else {
-                reject(new Error('Failed to convert file to base64'));
-            }
-        };
-        reader.onerror = (error) => reject(error);
-    });
-};
-
-const analyzeImage = async (file: File): Promise<string> => {
-    try {
-        // Convert File to base64
-        const base64Image = await fileToBase64(file);
-
-        const prompt = `You are a financial analyst with expertise in stock market trends and financial charts. The following image (provided as a base64-encoded string) represents a financial graph—such as an S&P 500 growth chart. Please analyze the chart and provide detailed insights on trends, key performance metrics, and any notable fluctuations related to the market.\nImage (base64): ${base64Image}`;
-        const analysis = await callGeminiLLM(prompt, "gemini-2.0-flash");
-        return analysis;
-    } catch (error: any) {
-        console.error("Error processing image:", error);
-        return `Error analyzing image: ${error.message}`;
-    }
-};
-
-// ---------------------------
-// Export client-side service functions
-// ---------------------------
-export const sendChatMessage = async (query: string): Promise<string> => {
-    try {
-        const lowerQuery = query.toLowerCase();
-
-        if (lowerQuery.includes("sentiment analysis")) {
-            const company = extractCompanyNameForSentiment(query);
-            if (company) {
-                return await performSentimentAnalysis(company);
-            } else {
-                return "Unable to extract company name for sentiment analysis. Please include the company name clearly.";
-            }
-        } else if (lowerQuery.includes("news")) {
-            const company = extractCompanyNameForNews(query);
-            if (company) {
-                return await getStockNews(company);
-            } else {
-                return "Please specify the company name to fetch news.";
-            }
-        } else if (lowerQuery.includes("price") || lowerQuery.includes("stock") || lowerQuery.includes("quote")) {
-            const ticker = await extractStockSymbol(query);
-            if (ticker) {
-                // Return only the stock quote without context
-                return await getStockQuoteAlphaVantage(ticker);
-            } else {
-                return "I couldn't determine which company's stock price you're looking for. Please specify a company name.";
-            }
-        } else {
-            const context = retrieveContext(query, 3);
-            const prompt = `You are a helpful financial assistant. Use the following relevant context to answer the user's query.\n\nContext: ${context}\n\nUser query: ${query}`;
-            return await callGeminiLLM(prompt);
-        }
-    } catch (error: any) {
-        console.error("Chatbot error:", error);
-        return `Error processing your request: ${error.message}`;
-    }
-};
-
-// Update to accept File object
-export const uploadAndAnalyzeImage = async (file: File): Promise<string> => {
-    try {
-        return await analyzeImage(file);
-    } catch (error: any) {
-        console.error("Error analyzing image:", error);
-        return `Error analyzing image: ${error.message}`;
-    }
-};
-
-// Keep a default export for backward compatibility
-export default {
-    sendChatMessage,
-    uploadAndAnalyzeImage
-};
